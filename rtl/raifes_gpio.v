@@ -35,6 +35,7 @@ module raifes_gpio(
 `define GPIO_READ_EN 2
 `define GPIO_WRITE_D 3
 `define GPIO_WRITE_EN 4
+`define GPIO_Sel 5
 
 reg	[2:0]	state, next_state;
 reg	[`HASTI_ADDR_WIDTH-1:0]	addr_r;	// hold addr in case of write operations
@@ -52,10 +53,10 @@ always @(posedge clk) begin
 		if(next_state == `GPIO_READ_EN) begin
 			hrdata <= {gpio_en,gpio_en,gpio_en,gpio_en};
 		end else
-		if(state == `GPIO_WRITE_D) begin
+		if(next_state == `GPIO_WRITE_D) begin
 			gpio_d <= hwdata[7:0];
 		end else
-		if(state == `GPIO_WRITE_EN) begin
+		if(next_state == `GPIO_WRITE_EN) begin
 			gpio_en <= hwdata[7:0];
 		end
 	end
@@ -63,7 +64,7 @@ end
 
 always @(*) begin
 	hready = 1'b0;
-	case (state) 
+	case (state) /*
 		`GPIO_IDLE	:	begin
 					hready = 1'b1;
 					if((haddr == `GPIO_BASE_ADDR) && |htrans) begin
@@ -72,7 +73,26 @@ always @(*) begin
 					if((haddr == `GPIO_BASE_ADDR+4) && |htrans) begin
 						next_state = |hwrite ? `GPIO_WRITE_EN : `GPIO_READ_EN;
 					end else next_state = `GPIO_IDLE;
-				end
+				end*/
+				
+		// --- S.G timing_issue_modif begin
+		`GPIO_IDLE	:	begin
+					hready = 1'b1;
+					if( ((haddr == `GPIO_BASE_ADDR) && |htrans) || ((haddr == `GPIO_BASE_ADDR+4) && |htrans) ) begin
+						next_state = `GPIO_Sel;
+					end else next_state = `GPIO_IDLE;
+				end		
+				
+		`GPIO_Sel	:	begin
+					if(haddr == `GPIO_BASE_ADDR) begin
+						next_state = |hwrite ? `GPIO_WRITE_D : `GPIO_READ_D;
+					end else 
+					if(haddr == `GPIO_BASE_ADDR+4) begin
+						next_state = |hwrite ? `GPIO_WRITE_EN : `GPIO_READ_EN;
+					end else next_state = `GPIO_Sel;
+				end		
+		// --- timing issue modif
+		
 		`GPIO_READ_D	:	begin
 					next_state = `GPIO_IDLE;		
 				end
