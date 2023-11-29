@@ -1,24 +1,5 @@
 `timescale 1ns / 1ps
-`include "POMAA_constants.vh"
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: Fabian Brünger
-// 
-// Create Date: 04/12/2020 06:50:23 PM
-// Design Name: 
-// Module Name: caemointerface
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: This is an interface for connection the caemo accelerator with the risc-v hardware plattform.
-// The control signals are set by the core. The interface should be implemented within the top module raifes_fpga_wrapper.
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+`include "caecointerface_constants.vh"
 //-----------------------------------  States   ---------------------------------------------------//
 
 module caecointerface(
@@ -49,60 +30,62 @@ module caecointerface(
     output          led
 );
 //-----------------------------------  Signale ---------------------------------------------------//
-wire    [15:0]  din;
-wire    [31:0]  result;
-wire            invalid, inready, resultvalid, cmd;
-reg     [15:0]  datahalf_r; 
+wire            in_ready;
+reg     [31:0]  data; 
 reg     [3:0]   state, next_state;
-reg             invalid_r, ctrl_r, led_r;
+reg             in_valid;
+(*mark_debug = 1*) reg     [31:0]  caecoif_ctrl_r, caecoif_ctrl;
 
 //-----------------------------------  Instantiierung Caemo --------------------------------------//
 caeco caeco_inst(
     // data: in 16-Bit
-    .DIN(din),
+    .DIN(data),
     // control signal to valid dai: in 1-Bit
-    .DIN_VALID(invalid),
+    .DIN_VALID(in_valid),
     // if true, data can be written: out 1-Bit
-    .DIN_READY(inready),
+    .DIN_READY(in_ready),
     // has to be set, if last data is written: in 1-Bit
-    .DIN_LAST(1'b0),
+    .DIN_LAST(caecoif_ctrl_r[3]),
     //-----
     // result register: out 
-    .RESULT(result),
+    .RESULT(rdata),
     // valid result : out 1-Bit
-    .RESULT_VALID(resultvalid),
+    .RESULT_VALID(res_inter),
     // cmd: in 1-Bit
-    .CMD(cmd),
+    .CMD(caecoif_ctrl_r[1:0]),
     // en: in 1-Bit
-    .EN(1'b0), 
+    .EN(caecoif_ctrl_r[2]), 
     //-----
-    .RSTN(~rst),
+    .RSTN((~rst) & caecoif_ctrl_r[4]),
     .CLK(clk)
 );
 //-----------------------------------  FSM signal processing Inputs-----------------------------------------//
 //------------------------------------------------ LED
-always@(posedge clk or posedge rst)
-begin
-    if(rst) begin
-    led_r <= 1'b0;
-    end
-    else begin
-        if(cmd) begin
-        led_r <= 1'b1;
-        end
-        else if (resultvalid) begin
-        led_r <= 1'b0;
-        end
-    end
-end
+//always@(posedge clk or posedge rst)
+//begin
+//    if(rst) begin
+//    led <= 1'b0;
+//    end
+//    else begin
+//        if(cmd) begin
+//        led <= 1'b1;
+//        end
+//        else if (res_inter) begin
+//        led <= 1'b0;
+//        end
+//    end
+//end
 //------------------------------------------------ 1
 always @(posedge clk or posedge rst)
 begin
     if(rst) begin
         state<=`IDLE;
+        caecoif_ctrl_r <= 0;
     end
     else begin
         state <= next_state;
+        if (state == `CTRL_DM ||state == `CTRL)
+            caecoif_ctrl_r <= caecoif_ctrl;
     end
 end
 //------------------------------------------------ 2
@@ -131,15 +114,9 @@ begin
                 end         
             end
             `WDA0: begin 
-                next_state = `WDA1; 
-            end
-            `WDA1: begin 
-                next_state = `IDLE;
+                next_state = `IDLE; 
             end
             `WDA0_DM: begin
-                next_state = `WDA1_DM;
-            end
-            `WDA1_DM: begin
                 next_state = `WAIT_DM;
             end
             `CTRL:      begin 
@@ -160,59 +137,38 @@ end
 //------------------------------------------------ 3
 always@(*)
 begin
-    invalid_r   = 1'b0;
-    ctrl_r      = 1'b0;
-    datahalf_r  = 16'h0;
+    in_valid     = 1'b0;
+    caecoif_ctrl = 0;
+    data         = 16'h0;
+    
     case(state)
         `IDLE: begin 
-            invalid_r   = 1'b0;
-            ctrl_r      = 1'b0;
-            datahalf_r  = 16'h0;           
+            in_valid     = 1'b0;
+            data         = 16'h0;           
         end
         `WDA0: begin 
-            invalid_r   = 1'b1;
-            ctrl_r      = 1'b0; 
-            datahalf_r  = { wdata[23:16] ,wdata[31:24] }; 
-        end
-        `WDA1: begin 
-            invalid_r   = 1'b1;
-            ctrl_r      = 1'b0; 
-            datahalf_r  = { wdata[7:0] ,wdata[15:8] } ; 
+            in_valid     = 1'b1;
+            data         = { wdata[23:16] ,wdata[31:24], wdata[7:0] ,wdata[15:8] }; 
         end
         `WDA0_DM: begin 
-            invalid_r   = 1'b1;
-            ctrl_r      = 1'b0; 
-            datahalf_r  = { dm_wdata[23:16] ,dm_wdata[31:24] }; 
-        end
-        `WDA1_DM: begin 
-            invalid_r   = 1'b1;
-            ctrl_r      = 1'b0; 
-            datahalf_r  = { dm_wdata[7:0] ,dm_wdata[15:8] } ; 
+            in_valid     = 1'b1;
+            data         = { dm_wdata[23:16] ,dm_wdata[31:24], dm_wdata[7:0] ,dm_wdata[15:8] }; 
         end
         `CTRL: begin 
-            invalid_r   = 1'b0;
-            ctrl_r      = wdata[0];
-            datahalf_r  = 16'h0;   
+            in_valid     = 1'b0;
+            caecoif_ctrl = wdata;
+            data         = 16'h0;   
         end
         `CTRL_DM: begin
-            invalid_r   = 1'b0;
-            ctrl_r      = dm_wdata[0];
-            datahalf_r  = 16'h0;
+            in_valid     = 1'b0;
+            caecoif_ctrl = dm_wdata;
+            data         = 16'h0;
         end
         `WAIT_DM: begin
-            invalid_r   = 1'b0;
-            ctrl_r      = 1'b0; 
-            datahalf_r  = 16'h0;
+            in_valid     = 1'b0;
+            data         = 16'h0;
         end
     endcase
 end
-//--------- Assign
-assign cmd          = ctrl_r;
-assign din          = datahalf_r;
-assign invalid      = invalid_r;
-assign rdata        = result;
-assign res_inter    = resultvalid;
-assign led          = led_r;
-
 endmodule
 
