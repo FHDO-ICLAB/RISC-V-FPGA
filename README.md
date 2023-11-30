@@ -1,4 +1,4 @@
-In this repository all sources and tools required to implement the RAIFES RV32IM RISC-V core on a Digilent Nexys A7 Xiling FPGA board  are given. Also implementation, programming and debugging is explained in a short tutorial covering the  installation and setup of the software tools on Windows.
+In this repository all sources and tools required to implement the RAIFES RV32IM RISC-V core on a Digilent Nexys A7 Xiling FPGA board  are given. Also implementation, programming and debugging is explained in a short tutorial covering also the installation and setup of the software tools on Windows.
 
 The RAIFES core is based on a RISC-V RV32IM processor core developed by Fraunhofer IMS. 
 
