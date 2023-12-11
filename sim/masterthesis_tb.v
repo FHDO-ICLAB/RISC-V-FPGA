@@ -31,17 +31,17 @@ wire            nRESET;
 // ------
 // optional
 // writing .ecg data thorugh mcu
-// reg     [63:0]  memimg_caeco_mcu[15450-1:0];
-// reg     [63:0]  buff_caeco_mcu;
-// reg     [31:0]  sample_caeco_mcu;
-// integer         mcd_caeco_mcu;
+ reg     [63:0]  memimg_caeco_mcu[15450-1:0];
+ reg     [63:0]  buff_caeco_mcu;
+ reg     [31:0]  sample_caeco_mcu;
+ integer         mcd_caeco_mcu;
 // ------
 // optional
 // writing .ecg data through dmi
-reg     [63:0]  memimg_caeco_dmi[30805-1:0];
-reg     [63:0]  buff_caeco_dmi;
-reg     [31:0]  sample_caeco_dmi;
-integer         mcd_caeco_dmi;
+//reg     [63:0]  memimg_caeco_dmi[30805-1:0];
+//reg     [63:0]  buff_caeco_dmi;
+//reg     [31:0]  sample_caeco_dmi;
+//integer         mcd_caeco_dmi;
 
 //----------------------------------------- DUT ----------------------------------------------------------//
 raifes_fpga_wrapper DUT(
@@ -103,74 +103,81 @@ end
  endtask
  
 //----------------------------------------- caeco mcu ---------------------------------------------------//
-// task caeco_write_mcu;
-// input   reg[7:0]	    testnum;
-// input   reg[255*8:1]	filename;
-// input   reg[15:0]	    length;
-// output  reg[31:0]       result;
-// begin
-//     $write("JTAG Task Start: write Caeco through mcu!");
-// 	//----------
-// 	// Set cmd signal through SW instruction. Address 32'hc0000011
-//     $write("Set the caemo signal cmd \n");
-//     jtag_write_mem(32'hc0000011,32'h00000001,result);
-// 	$write("Read ecg file for real testcase\n");
-//     // read file as binary
-//     mcd_caeco_mcu = $fopen(filename, "rb");
-//     $fread(memimg_caeco_mcu, mcd_caeco_mcu);
-//     $write("write the EKG data through store instructions into the caeco\n");
-// 	for (i = 49; i < length; i = i + 1) begin
-// 	   // 64 - Bit = 2 Datasamples
-// 	   // get Sample 1 = 32 MSB
-// 	   buff_caeco_mcu = memimg_caeco_mcu[i];
-// 	   sample_caeco_mcu = buff_caeco_mcu[63:32];
-// 	   $write("writing sample: ");$write(sample_caeco_mcu);$write("\n");
-// 	   jtag_write_mem(32'hc0000010,sample_caeco_mcu,result);
-// 	   // get Sample 1 = 32 MSB
-//        sample_caeco_mcu = buff_caeco_mcu[31:0];
-//        $write("writing sample 2: ");$write(sample_caeco_mcu);$write("\n");
-//        jtag_write_mem(32'hc0000010,sample_caeco_mcu,result);
-// 	end
-//     $write("JTAG Task End: write Caeco through mcu!");
-// end
-// endtask
+ task caeco_write_mcu;
+ input   reg[7:0]	    testnum;
+ input   reg[255*8:1]	filename;
+ input   reg[15:0]	    length;
+ output  reg[31:0]       result;
+ begin
+     $write("JTAG Task Start: write Caeco through mcu!");
+ 	//----------
+ 	// Set cmd signal through SW instruction. Address 32'hc0000011
+     $write("Set the caemo signal cmd \n");
+     jtag_write_mem(32'hc0000011,32'h00000000,result);
+     jtag_write_mem(32'hc0000011,32'h00000010,result);
+     jtag_write_mem(32'hc0000011,32'h00000011,result);
+ 	$write("Read ecg file for real testcase\n");
+     // read file as binary
+     mcd_caeco_mcu = $fopen(filename, "rb");
+     $fread(memimg_caeco_mcu, mcd_caeco_mcu);
+     $write("write the EKG data through store instructions into the caeco\n");
+ 	for (i = 49; i < length; i = i + 1) begin
+ 	   // 64 - Bit = 2 Datasamples
+ 	   // get Sample 1 = 32 MSB
+ 	   buff_caeco_mcu = memimg_caeco_mcu[i];
+ 	   sample_caeco_mcu = buff_caeco_mcu[63:32];
+ 	   $write("writing 1st-half of sample ");$write(i);$write(": ");$write(sample_caeco_mcu);$write("\n");
+ 	   jtag_write_mem(32'hc0000010,sample_caeco_mcu,result);
+ 	   // get Sample 1 = 32 MSB
+        sample_caeco_mcu = buff_caeco_mcu[31:0];
+        $write("writing 2nd-half of sample ");$write(i);$write(": ");$write(sample_caeco_mcu);$write("\n");
+        jtag_write_mem(32'hc0000010,sample_caeco_mcu,result);
+ 	end
+     $write("JTAG Task End: write Caeco through mcu!");
+     jtag_write_mem(32'hc0000011,32'h00000018,result);
+ end
+ endtask
 //----------------------------------------- caeco dmi ---------------------------------------------------//
 
-task caeco_write_dmi;
-input   reg[7:0]	    testnum;
-input   reg[255*8:1]	filename;
-input   reg[15:0]	    length;
-output  reg[31:0]       result;
-begin
-    $write("JTAG Task Start: write Caeco through dmi!");
-	// set cmd signal directly with dmi address of 23
-    $write("Set the caemo signal cmd \n");
-    jtag_write_caeco(6'h23,32'h00000001,result);
-    // write the data	
-	$write("Read ecg file for real testcase\n");
-    mcd_caeco_dmi = $fopen(filename, "rb");
-    $fread(memimg_caeco_dmi, mcd_caeco_dmi);
-    // write the data via jtag directly through the dm
-	for (i = 49; i < length; i = i + 1) begin
-	   // 64 - Bit = 2 Datasamples
-	   // get Sample 1 = 32 MSB
-	   buff_caeco_dmi = memimg_caeco_dmi[i];
-	   sample_caeco_dmi = buff_caeco_dmi[63:32];
-	   // check if value is not zero (for last sample)
-	   if (sample_caeco_dmi != 32'h0) begin
-	       $write("writing sample: ");$write(sample_caeco_dmi);$write("\n");
-           jtag_write_caeco(6'h22,sample_caeco_dmi,result); 
-	   end
-	   // get Sample 1 = 32 MSB
-       sample_caeco_dmi = buff_caeco_dmi[31:0];
-       if (sample_caeco_dmi != 32'h0)begin
-            $write("writing sample 2: ");$write(sample_caeco_dmi);$write("\n");
-            jtag_write_caeco(6'h22,sample_caeco_dmi,result);
-       end
-	end
-    $write("JTAG Task End: write Caeco through dmi!");
-end
-endtask
+//task caeco_write_dmi;
+//input   reg[7:0]	    testnum;
+//input   reg[255*8:1]	filename;
+//input   reg[15:0]	    length;
+//output  reg[31:0]       result;
+//begin
+//    $write("JTAG Task Start: write Caeco through dmi!");
+//	// set cmd signal directly with dmi address of 23
+//    $write("Set the caemo signal cmd \n");
+//    jtag_write_caeco(6'h23,32'h00000000,result);
+//    jtag_write_caeco(6'h23,32'h00000010,result);
+//    jtag_write_caeco(6'h23,32'h00000011,result);
+//    // write the data
+//	$write("Read ecg file for real testcase\n");
+//    mcd_caeco_dmi = $fopen(filename, "rb");
+//    $fread(memimg_caeco_dmi, mcd_caeco_dmi);
+//    // write the data via jtag directly through the dm
+//	for (i = 49; i < length; i = i + 1) begin
+//	   // 64 - Bit = 2 Datasamples
+//	   // get Sample 1 = 32 MSB
+//	   buff_caeco_dmi = memimg_caeco_dmi[i];
+//	   sample_caeco_dmi = buff_caeco_dmi[63:32];
+//	   // check if value is not zero (for last sample)
+//	   if (sample_caeco_dmi != 32'h0) begin
+//	       $write("writing sample: ");$write(sample_caeco_dmi);$write("\n");
+//           jtag_write_caeco(6'h22,sample_caeco_dmi,result); 
+//	   end
+//	   // get Sample 1 = 32 MSB
+//       sample_caeco_dmi = buff_caeco_dmi[31:0];
+//       if (sample_caeco_dmi != 32'h0)begin
+//            $write("writing sample 2: ");$write(sample_caeco_dmi);$write("\n");
+//            jtag_write_caeco(6'h22,sample_caeco_dmi,result);
+//       end
+//	end
+//    $write("JTAG Task End: write Caeco through dmi!");
+//    jtag_write_caeco(6'h23,32'h00000018,result);
+
+//end
+//endtask
 //----------------------------------------- rst ----------------------------------------------------------//
 //initial
 //begin
@@ -192,17 +199,20 @@ initial begin
     $write("Initializing finished! Now starting with the testcases \n");
 
     // optional: writing programmcode through mcu
-    bram_write_mcu(1,"POOMAV1_0Sim.mem",2167,result_bram);
+    //bram_write_mcu(1,"POOMAV1_0Sim.mem",2167,result_bram);
 
     // writing caeco through mcu
         // caeco_write_mcu(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",15401,result);
-    
+        caeco_write_mcu(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",5116,result);
     // writing caeco directly through dmi
-//        caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",30804,result);
-        caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",1116,result);
-
+    //    caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",30804,result);
+        //caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",1116,result); // Not getting correct result, not enough samples!!
+        //caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",5116,result);     // Min recommended
+        //364ms
     $write("let the mcu run 500ms!");
-     #500000000;
+    #30000000
+    jtag_dmi_read(6'h24,result);  // At this point there should be a valid result
+    #50000000;
 
     $finish();
 end // initial

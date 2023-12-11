@@ -18,7 +18,7 @@
 `define PER_MASK	`HASTI_BUS_WIDTH'h40000000
 `define UART_reg       `HASTI_BUS_WIDTH'hC0000000    //Bits: 9=uart_reset, 8=send_strobe, 7-0=data_byte
 `define GPIO_BASE_ADDR	32'hC0000008
-`define CAECO_reg       `HASTI_BUS_WIDTH'hc00000c0      // F.B added: Caeco virtuell address. Also has to be mentioned in linker script!
+`define CAECO_reg       `HASTI_BUS_WIDTH'hc00000c0      // F.B added: Caeco virtuell address. Also has to be mentioned in linker script! (S.G. This address is not mention in .ld?)
 
 `define PRINCE_in0      `HASTI_BUS_WIDTH'hC0001000
 `define PRINCE_in1      `HASTI_BUS_WIDTH'hC0001004
