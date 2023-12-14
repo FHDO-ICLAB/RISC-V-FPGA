@@ -54,11 +54,11 @@ raifes_fpga_wrapper DUT(
         .uart_tx(uart_tx),
         .led(ledout),
         .sw(8'b00000000),
-        .btnu(1'b0),
-        .btnd(1'b0),
-        .btnl(1'b0),
-        .btnr(1'b0),
-        .btnc(1'b0)
+        .btnu(1'b1),
+        .btnd(1'b1),
+        .btnl(1'b1),
+        .btnr(1'b1),
+        .btnc(1'b1)
         // added for testing the hardware interrupt. only needed if caeco is not connected to interrupt
         // .ext_inter(ext_inter)
 );
@@ -203,7 +203,7 @@ initial begin
 
     // writing caeco through mcu
         // caeco_write_mcu(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",15401,result);
-        caeco_write_mcu(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",5116,result);
+        //caeco_write_mcu(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",5116,result);
     // writing caeco directly through dmi
     //    caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",30804,result);
         //caeco_write_dmi(1,"00019fb0-6b6a-4ccf-b818-b52221ec524c.ecg",1116,result); // Not getting correct result, not enough samples!!

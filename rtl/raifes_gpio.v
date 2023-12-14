@@ -3,8 +3,8 @@
 //
 `include "raifes_hasti_constants.vh"
 
-//`define GPIO_BASE_ADDR	32'hC0000000
-
+//`define GPIO_BASE_ADDR	32'hC00000008
+/*
 module raifes_gpio(
 		// system clk and reset
 		input			reset,
@@ -64,16 +64,16 @@ end
 
 always @(*) begin
 	hready = 1'b0;
-	case (state) /*
-		`GPIO_IDLE	:	begin
-					hready = 1'b1;
-					if((haddr == `GPIO_BASE_ADDR) && |htrans) begin
-						next_state = |hwrite ? `GPIO_WRITE_D : `GPIO_READ_D;
-					end else 
-					if((haddr == `GPIO_BASE_ADDR+4) && |htrans) begin
-						next_state = |hwrite ? `GPIO_WRITE_EN : `GPIO_READ_EN;
-					end else next_state = `GPIO_IDLE;
-				end*/
+	case (state) 
+//		`GPIO_IDLE	:	begin
+//					hready = 1'b1;
+//					if((haddr == `GPIO_BASE_ADDR) && |htrans) begin
+//						next_state = |hwrite ? `GPIO_WRITE_D : `GPIO_READ_D;
+//					end else 
+//					if((haddr == `GPIO_BASE_ADDR+4) && |htrans) begin
+//						next_state = |hwrite ? `GPIO_WRITE_EN : `GPIO_READ_EN;
+//					end else next_state = `GPIO_IDLE;
+//				end
 				
 		// --- S.G timing_issue_modif begin
 		`GPIO_IDLE	:	begin
@@ -107,5 +107,94 @@ always @(*) begin
 				end
 	endcase
 end
+*/
+
+module raifes_gpio( 
+  // system clk and reset
+  input     reset,
+  input     clk,
+
+  // gpio in/outputs
+  output  reg [7:0]            gpio_d,
+  output  reg [7:0]            gpio_en,
+  input   [7:0]                gpio_i,
+
+  // system bus 
+  input [`HASTI_ADDR_WIDTH-1:0]      haddr,
+  input                              hwrite,     // unused, as imem is read-only (typically)
+  input [`HASTI_SIZE_WIDTH-1:0]      hsize,
+  input [`HASTI_BURST_WIDTH-1:0]     hburst,
+  input                              hmastlock,
+  input [`HASTI_PROT_WIDTH-1:0]      hprot,
+  input [`HASTI_TRANS_WIDTH-1:0]     htrans,
+  input [`HASTI_BUS_WIDTH-1:0]       hwdata,      // unused, as imem is read-only (typically)
+  output  reg [`HASTI_BUS_WIDTH-1:0] hrdata,
+  output                             hready,
+  output    [`HASTI_RESP_WIDTH-1:0]  hresp
+);
+
+reg [`HASTI_ADDR_WIDTH-1:0] haddr_r;
+reg                         hwrite_r;
+reg wr, rd;
+
+always @(posedge clk or posedge reset) begin
+  if(reset)
+    haddr_r <= 0;
+  else 
+    haddr_r <= haddr;   
+end
+
+always @(posedge clk or posedge reset) begin
+  if(reset)
+    hwrite_r <= 0;
+  else 
+    hwrite_r <= hwrite;
+end
+
+always @(posedge clk or posedge reset) begin
+  if(reset) begin
+    hrdata   <= 0;
+    gpio_d   <= 0;
+    gpio_en  <= 0; 
+    wr <= 0;
+    rd <= 0;
+  end
+  else
+  begin
+    if(hwrite_r) begin
+      case(haddr_r)
+        (`GPIO_BASE_ADDR)   : begin
+                                gpio_d <= hwdata[7:0];
+                                wr <= 1;
+                              end
+        (`GPIO_BASE_ADDR+4) : gpio_en <= hwdata[7:0];
+        default       :;
+      endcase 
+    end
+    else begin
+    wr <= 0;
+    if(|htrans) begin
+      case(haddr)
+        (`GPIO_BASE_ADDR) : begin
+                                hrdata <= gpio_i;
+                                rd <= 1;
+                            end
+        (`GPIO_BASE_ADDR+4) : begin
+                                hrdata <= gpio_en;
+                                rd <= 0;
+                              end
+        default: rd <= 0;
+      endcase
+    end
+    else rd <= 0;
+    end
+  end
+end
+
+// the core complex peripherals will always 
+// handle read/writes in one cycle, so they will 
+// never issue wait cycles. Hence hready is always 1'b1
+assign hready = 1'b1;
+assign hresp = 0;
 
 endmodule
